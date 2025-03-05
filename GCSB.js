@@ -1,18 +1,129 @@
-const TelegramBot = require('node-telegram-bot-api'); 
-const dotenv = require('dotenv'); 
-const { getGameList } = require('./database.js'); 
+const TelegramBot = require('node-telegram-bot-api');
+const dotenv = require('dotenv');
+const { getGameList, getRandomGame } = require('./database.js'); // Подключаем getGenres
 
-dotenv.config(); 
-const token = process.env.TOKEN; 
-const bot = new TelegramBot(token, { polling: true }); 
+dotenv.config();
+const token = process.env.TOKEN;
+const bot = new TelegramBot(token, { polling: true });
 
+// Главное меню
+const gameMenu = {
+    reply_markup: {
+        inline_keyboard: [
+            [{ text: '🎮 Выбрать игру', callback_data: 'choose_game' }]
+        ]
+    }
+};
+
+// Меню для выбора игры
+const chooseGameMenu = {
+    reply_markup: {
+        inline_keyboard: [
+            [{ text: '📜 Показать список', callback_data: 'show_list' }],
+            [{ text: '🎲 Выбрать случайную игру', callback_data: 'choose_random_game' }],
+            [{ text: '🎮 Выбрать по жанру', callback_data: 'choose_by_genre' }]
+        ]
+    }
+};
+
+// Меню для списка игр
+const gameListMenu = {
+    reply_markup: {
+        inline_keyboard: [
+            [{ text: '📋 Меню', callback_data: 'open_menu' },
+            { text: '🔙 Назад', callback_data: 'back_to_choose_game' }]
+        ]
+    }
+};
+
+// Меню для выбора жанра
+const showChooseGenreMenu = async (chatId) => {
+    // Создание инлайн-клавиатуры с жанрами
+    await bot.sendMessage(chatId, '🎮 Выберите жанр игры:', {
+        reply_markup: {
+            inline_keyboard: [
+                [
+                    { text: 'Sandbox', callback_data: 'sandbox' },
+                    { text: 'RPG', callback_data: 'rpg' },
+                    { text: 'Shooter', callback_data: 'shooter' }
+                ],
+                [
+                    { text: 'Simulation', callback_data: 'simulation' },
+                    { text: 'Battle Royale', callback_data: 'battle_royale' },
+                    { text: 'Party', callback_data: 'party' }
+                ],
+                [
+                    { text: 'MOBA', callback_data: 'moba' },
+                    { text: 'Action-Adventure', callback_data: 'action_-_adventure' },
+                    { text: 'Sports', callback_data: 'sports' }
+                ],
+                [
+                    { text: 'MMORPG', callback_data: 'mmorpg' },
+                    { text: 'Roguelike', callback_data: 'roguelike' },
+                    { text: 'Horror', callback_data: 'horror' }
+                ],
+                [
+                    { text: 'Augmented Reality', callback_data: 'augmented_reality' },
+                    { text: 'Platformer', callback_data: 'platformer' },
+                    { text: 'Stealth', callback_data: 'stealth' }
+                ]
+            ]
+        }
+    });
+};
+
+// Функция показа меню
+const showMenu = async (chatId) => {
+    await bot.sendMessage(chatId,
+        `📌 *Меню возможностей:*
+🎮 *Выбрать игру* - откроет список доступных действий `,
+        { parse_mode: 'Markdown' });
+
+    return bot.sendMessage(chatId, "📋 Меню", gameMenu);
+};
+
+// Функция показа меню выбора игры
+const showChooseGameMenu = async (chatId) => {
+    return bot.sendMessage(chatId, "🎮 Выбери действие:", chooseGameMenu);
+};
+
+// Функция показа списка игр
+const showGameList = async (chatId) => {
+    const gameList = await getGameList();
+    if (gameList.length === 0) {
+        return bot.sendMessage(chatId, "📭 В списке пока нет игр.");
+    }
+
+    // Здесь можно добавить сортировку
+    gameList.sort();
+
+    await bot.sendMessage(chatId, "📜 Список игр:\n" + gameList.join("\n"), gameListMenu);
+};
+
+// Функция для выбора случайной игры
+const chooseRandomGame = async (chatId) => {
+    const randomGame = await getRandomGame();
+    if (!randomGame) {
+        return bot.sendMessage(chatId, "📭 В списке пока нет игр.");
+    }
+
+    return bot.sendMessage(chatId, `🎲 Случайная игра: ${randomGame}`, {
+        reply_markup: {
+            inline_keyboard: [
+                [{ text: 'Ещё', callback_data: 'choose_random_game' },        // Кнопка "Ещё" для новой случайной игры
+                { text: '🔙 Назад', callback_data: 'back_to_choose_game' }]  // Кнопка "Назад" для возврата в предыдущее меню
+            ]
+        }
+    });
+};
+
+// Функция старта бота
 const start = () => {
     bot.setMyCommands([
-        { command: '/start', description: "Приветствие" },
-        { command: '/info', description: "Информация о боте" },
-        { command: '/list', description: "Просмотреть список игр" },
-        { command: '/random', description: "Выбрать случайную игру" },
-        { command: '/help', description: "Список доступных команд" }
+        { command: '/start', description: "Запуск бота" },
+        { command: '/menu', description: "Меню" },
+        { command: '/chose_game', description: "Выбрать игру" },
+        { command: '/commands', description: "Список доступных команд" }
     ]);
 
     bot.on('message', async msg => {
@@ -20,68 +131,74 @@ const start = () => {
         const text = msg.text;
         const userName = msg.from.first_name;
 
-        const menu = {
-            reply_markup: {
-                inline_keyboard: [
-                    [{ text:'About Bot', callback_data: 'about_bot'}],
-                    // [{ text: 'Menu', callback_data: 'menu' }]
-                ]
-            }
-        };
-
-        // Команда /start
         if (text === '/start') {
-            return bot.sendMessage(chatId, `👋 Привет, ${userName}!\nЭтот бот поможет тебе выбрать игру.`, menu);
+            // Приветственное сообщение с кнопкой меню
+            const welcomeMessage = `👋 Привет, ${userName}, я GCSB.  
+Я создан для того, чтобы помочь тебе определиться с выбором игр.  
+Давай посмотрим в меню, что я умею!`;
+
+            // Выводим приветствие с кнопкой "Меню"
+            await bot.sendMessage(chatId, welcomeMessage, {
+                reply_markup: {
+                    inline_keyboard: [
+                        [{ text: '📋 Меню', callback_data: 'open_menu' }]
+                    ]
+                }
+            });
+
+            // Не показываем меню сразу, только после нажатия на кнопку "Меню"
+            return;
         }
 
-        // Команда /info
-        if (text === '/info') {
-            return bot.sendMessage(chatId, "🎮 Этот бот помогает выбрать игру.\nТы можешь просмотреть список игр или выбрать случайную.");
+        if (text === '/menu') {
+            return showMenu(chatId);
         }
 
-        // Команда /list
-        if (text === '/list') {
-            const gameList = await getGameList();
-            if (gameList.length === 0) {
-                return bot.sendMessage(chatId, "📭 В списке пока нет игр.");
-            }
-            const messageText = "📜 Список игр:\n" + gameList.map((game, index) => `${index + 1}. ${game}`).join("\n");
-            return bot.sendMessage(chatId, messageText);
+        if (text === '/chose_game') {
+            return showChooseGameMenu(chatId); // Показываем меню выбора игры
         }
 
-        // Команда /random
-        if (text === '/random') {
-            const gameList = await getGameList();
-            if (gameList.length === 0) {
-                return bot.sendMessage(chatId, "😢 В списке нет игр для выбора.");
-            }
-            const randomGame = gameList[Math.floor(Math.random() * gameList.length)];
-            return bot.sendMessage(chatId, `🎲 Тебе стоит сыграть в: ${randomGame}`);
-        }
-
-        // Команда /help
-        if (text === '/help') {
+        if (text === '/commands') {
             return bot.sendMessage(chatId, "📖 Доступные команды:\n" +
-                "/start - Приветствие\n" +
-                "/info - Информация о боте\n" +
-                "/list - Просмотреть список игр\n" +
-                "/random - Выбрать случайную игру\n" +
-                "/help - Список команд"
-            );
+                "/start - Запуск бота\n" +
+                "/menu - Меню\n" +
+                "/chose_game - Выбрать игру\n" +
+                "/commands - Список команд");
         }
 
-        return bot.sendMessage(chatId, "❓ Неизвестная команда. Напиши /help, чтобы увидеть список доступных команд.");
+        return bot.sendMessage(chatId, "❓ Неизвестная команда. Используй /help для списка доступных команд.");
     });
 
-    // Обработчик нажатия кнопки "ℹ️ Информация"
-    bot.on('callback_query', query => {
+    // Обработчик нажатий кнопок
+    bot.on('callback_query', async query => {
         const chatId = query.message.chat.id;
-        if (query.data === 'about_bot') {
-            bot.sendMessage(chatId, "🎮 Этот бот помогает выбрать игру.\nТы можешь просмотреть список игр или выбрать случайную.");
+        const data = query.data;
+
+        if (data === 'open_menu') {
+            return showMenu(chatId); // Показываем меню, когда нажата кнопка "Меню"
         }
-        // if (query.data === 'menu'){
-        //     bot.sendMessage(chatId, "")
-        // }
+
+        if (data === 'choose_game') {
+            return showChooseGameMenu(chatId); // Показываем меню выбора игры
+        }
+
+        if (data === 'show_list') {
+            return showGameList(chatId); // Показываем список игр
+        }
+
+        if (data === 'choose_random_game') {
+            return chooseRandomGame(chatId); // Показываем случайную игру
+        }
+
+        if (data === 'back_to_choose_game') {
+            return showChooseGameMenu(chatId); // Возвращаем в меню выбора игры
+        }
+
+        // Обработка кнопки "Выбрать жанр игры"
+        if (data === 'choose_by_genre') {
+            return showChooseGenreMenu(chatId); // Показываем меню выбора жанра
+        }
+
         bot.answerCallbackQuery(query.id);
     });
 };
