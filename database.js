@@ -22,6 +22,7 @@ const getGameList = async () => {
   }
 };
 
+// Функция для получения случайной игры
 const getRandomGame = async () => {
   try {
     const res_1 = await client.query('SELECT name FROM base_list_games ORDER BY RANDOM() LIMIT 1');
@@ -32,6 +33,7 @@ const getRandomGame = async () => {
   }
 };
 
+// Функция для получения жанров
 const getGenres = async () => {
   try {
     const res_2 = await client.query('SELECT genre FROM base_list_games'); // Запрос к базе данных для получения жанров
@@ -42,4 +44,15 @@ const getGenres = async () => {
   }
 };
 
-module.exports = { getGameList, getRandomGame, getGenres };
+// Функция для получения игр по жанру
+const getGamesByGenre = async (genre) => {
+  try {
+    const res = await client.query('SELECT name FROM base_list_games WHERE genre = $1', [genre]);
+    return res.rows.map(row => row.name); // Возвращаем список игр для данного жанра
+  } catch (err) {
+    console.error('Ошибка при получении игр по жанру:', err.stack);
+    return [];
+  }
+};
+
+module.exports = { getGameList, getRandomGame, getGenres, getGamesByGenre };
