@@ -1,4 +1,5 @@
-const gameListMenu = {
+//game_list_menu.js
+const game_list_menu = {
     reply_markup: {
         inline_keyboard: [
             [{ text: '📋 Меню', callback_data: 'open_menu' }, { text: '🔙 Назад', callback_data: 'choose_game' }]
@@ -6,4 +7,4 @@ const gameListMenu = {
     }
 };
 
-module.exports = { gameListMenu };
+module.exports = { game_list_menu };

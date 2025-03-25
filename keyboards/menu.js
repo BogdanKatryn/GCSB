@@ -1,4 +1,5 @@
-const chooseGameMenu = {
+//menu.js
+const menu = {
     reply_markup: {
         inline_keyboard: [
             [{ text: '📜 Показать список', callback_data: 'show_list' },
@@ -9,4 +10,4 @@ const chooseGameMenu = {
     }
 };
 
-module.exports = { chooseGameMenu };
+module.exports = { menu };

@@ -1,9 +1,9 @@
-const TelegramBot = require('node-telegram-bot-api');
 const dotenv = require('dotenv');
+const TelegramBot = require('node-telegram-bot-api');
 const { handleCommands } = require('./handlers/commandsHandlers');
 const { handleCallbacks } = require('./handlers/callbacksHandlers');
-const { getGamesByGenre } = require('./database');
 const { handleGenreSelection, handleShowList, handleRandomGame, genres } = require('./handlers/genreHandlers');
+const { getGamesByGenre } = require('./database');
 
 dotenv.config();
 const token = process.env.TOKEN;
@@ -13,10 +13,12 @@ const bot = new TelegramBot(token, { polling: true });
 bot.setMyCommands([
     { command: '/start', description: "Запуск бота" },
     { command: '/menu', description: "Меню" },
-    { command: '/show_list', description: "Показать список игр по умолчанию" },
     { command: '/choose_game', description: "Выбрать игру" },
+    { command: '/show_list', description: "Показать список игр по умолчанию" },
     { command: '/choose_random_game', description: "Показать список игр по умолчанию" },
     { command: '/choose_by_genre', description: "Выбрать игры за жанром" },
+    { command: '/list', description: "Списки" },
+    { command: '/add_list', description: "Добавить список" },
     { command: '/commands', description: "Список доступных команд" }
 ]);
 

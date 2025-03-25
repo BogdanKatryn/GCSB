@@ -55,4 +55,87 @@ const getGamesByGenre = async (genre) => {
   }
 };
 
-module.exports = { getGameList, getRandomGame, getGenres, getGamesByGenre };
+const createTable = async (chatId, tableName) => {
+  const sanitizedTableName = tableName.toLowerCase(); // Санитизация имени таблицы
+  const query = `
+    CREATE TABLE IF NOT EXISTS "${sanitizedTableName}" (
+      id SERIAL PRIMARY KEY,
+      game_name TEXT NOT NULL,
+      genre TEXT,
+      sort_order INTEGER DEFAULT 0,
+      user_id TEXT NOT NULL
+    )
+  `;
+  
+  await client.query(query);
+
+  // Добавляем пользователя как владельца в таблицу
+  const insertOwnerQuery = `
+    INSERT INTO "${sanitizedTableName}" (game_name, genre, user_id) 
+    VALUES ('OWNER', 'ADMIN', $1)
+  `;
+  await client.query(insertOwnerQuery, [chatId]);
+
+  // Логируем, что таблица создана и пользователь добавлен
+  console.log(`Таблица "${sanitizedTableName}" создана для пользователя ${chatId}`);
+};
+
+
+const getUserTables = async (chatId) => {
+  try {
+    // Получаем список всех таблиц в схеме public
+    const res = await client.query(`
+      SELECT table_name 
+      FROM information_schema.tables 
+      WHERE table_schema = 'public'
+    `);
+
+    let userTables = [];
+
+    for (let row of res.rows) {
+      // Проверяем, есть ли столбец user_id в таблице
+      const columnCheckQuery = `
+        SELECT column_name
+        FROM information_schema.columns
+        WHERE table_schema = 'public' AND table_name = $1
+      `;
+      const columnCheckRes = await client.query(columnCheckQuery, [row.table_name]);
+
+      // Если столбец user_id существует в таблице
+      const hasUserIdColumn = columnCheckRes.rows.some(column => column.column_name === 'user_id');
+      
+      if (hasUserIdColumn) {
+        // Проверяем наличие записи с user_id в таблице
+        const checkUserQuery = `
+          SELECT 1 FROM public."${row.table_name}" WHERE user_id = $1 LIMIT 1
+        `;
+        const checkUserRes = await client.query(checkUserQuery, [chatId]);
+
+        if (checkUserRes.rows.length > 0) {
+          userTables.push(row.table_name);
+        }
+      }
+    }
+
+    return userTables.length > 0 ? userTables : [];
+  } catch (err) {
+    console.error('Ошибка при получении таблиц для пользователя:', err.stack);
+    return [];
+  }
+};
+
+
+
+
+
+// Функция для получения списка таблиц
+const getTableList = async () => {
+  try {
+    const res = await client.query("SELECT table_name FROM information_schema.tables WHERE table_schema = 'public';");
+    return res.rows.map(row => row.table_name);
+  } catch (err) {
+    throw new Error('Ошибка при получении списка таблиц: ' + err.message);
+  }
+};
+
+module.exports = {getGameList, getRandomGame, getGenres, getGamesByGenre, createTable, getUserTables, getTableList };

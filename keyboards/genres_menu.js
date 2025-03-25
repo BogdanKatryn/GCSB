@@ -1,4 +1,5 @@
-const genresMenu = {
+//genres_menu.js
+const genres_menu = {
     reply_markup: {
         inline_keyboard: [
             [{ text: 'Sandbox', callback_data: 'sandbox' }, { text: 'RPG', callback_data: 'rpg' }, { text: 'Shooter', callback_data: 'shooter' }],
@@ -11,4 +12,4 @@ const genresMenu = {
     }
 };
 
-module.exports = { genresMenu };
+module.exports = { genres_menu };
